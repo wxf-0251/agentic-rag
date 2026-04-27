@@ -1,0 +1,94 @@
+<h2>Agentic RAG — System Architecture</h2>
+<p class="subtitle">4-Agent Pipeline with LangGraph Orchestration & Reasoning Loop</p>
+
+<div class="section">
+  <h3>4-Stage Pipeline</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Agentic RAG Reasoning Loop</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;gap:16px;font-family:monospace;font-size:15px;">
+
+      <div style="border:2px solid #a855f7;border-radius:8px;padding:14px;background:rgba(168,85,247,0.05)">
+        <div style="color:#a855f7;font-weight:bold;margin-bottom:6px">Stage 1: Planner Agent (Claude Opus 4)</div>
+        <div style="color:#94a3b8;font-size:14px">
+          Input: "分析2026年人形机器人核心供应链及投资风险"<br>
+          → Decompose into 5-7 sub-questions<br>
+          → Generate report outline with chapters<br>
+          → Classify each sub-question by data source type
+        </div>
+      </div>
+
+      <div style="border:2px solid #3b82f6;border-radius:8px;padding:14px;background:rgba(59,130,246,0.05)">
+        <div style="color:#3b82f6;font-weight:bold;margin-bottom:6px">Stage 2: Researcher Agents (Haiku 4, N parallel)</div>
+        <div style="color:#94a3b8;font-size:14px">
+          Router per sub-question:<br>
+          • "Latest funding news" → Tavily Search API<br>
+          • "Harmonic reducer technology" → Local Chroma DB<br>
+          • "Tesla stock trend" → Yahoo Finance API<br>
+          → Retrieved context + source citations stored in shared state
+        </div>
+      </div>
+
+      <div style="border:2px solid #22c55e;border-radius:8px;padding:14px;background:rgba(34,197,94,0.05)">
+        <div style="color:#22c55e;font-weight:bold;margin-bottom:6px">Stage 3: Writer + Reviewer Loop (Opus 4)</div>
+        <div style="color:#94a3b8;font-size:14px">
+          Writer drafts section → Reviewer critiques:<br>
+          • "Sufficient citations to support claims?"<br>
+          • "Any data inconsistencies?"<br>
+          • "Logical gaps in reasoning?"<br>
+          → FAIL: triggers re-search with refined keywords<br>
+          → PASS: section finalized
+        </div>
+      </div>
+
+      <div style="border:2px solid #f59e0b;border-radius:8px;padding:14px;background:rgba(245,158,11,0.05)">
+        <div style="color:#f59e0b;font-weight:bold;margin-bottom:6px">Stage 4: Streaming Output via Streamlit</div>
+        <div style="color:#94a3b8;font-size:14px">
+          Real-time: outline → research progress → draft → final report<br>
+          Markdown + inline citations + auto-generated charts (matplotlib)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>LangGraph State Machine</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">StateGraph with Conditional Edges</div>
+  <div class="mockup-body">
+    <div style="text-align:center;font-family:monospace;font-size:14px;color:#e2e8f0;line-height:2.2">
+      <div style="padding:8px;background:rgba(255,255,255,0.06);border-radius:4px">[START] user_query</div>
+      <div>↓</div>
+      <div style="padding:8px;background:rgba(168,85,247,0.2);border-radius:4px">planner_node</div>
+      <div>↓</div>
+      <div style="display:flex;justify-content:center;gap:10px">
+        <span style="padding:6px 12px;background:rgba(59,130,246,0.2);border-radius:4px">researcher_1</span>
+        <span style="padding:6px 12px;background:rgba(59,130,246,0.2);border-radius:4px">researcher_2</span>
+        <span style="padding:6px 12px;background:rgba(59,130,246,0.2);border-radius:4px">researcher_N</span>
+      </div>
+      <div style="font-size:13px;color:#94a3b8">(parallel via LangGraph Send API)</div>
+      <div>↓</div>
+      <div style="padding:8px;background:rgba(34,197,94,0.2);border-radius:4px">writer_node</div>
+      <div>↓</div>
+      <div style="padding:8px;background:rgba(239,68,68,0.2);border-radius:4px">reviewer_node</div>
+      <div style="font-size:13px;color:#f59e0b">↖ FAIL: re-search | PASS: continue →</div>
+      <div>↓</div>
+      <div style="padding:8px;background:rgba(245,158,11,0.2);border-radius:4px">[END] final_report</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>Key Design Decisions</h3>
+  <ul style="font-size:15px">
+    <li><strong>Not linear</strong> — Reviewer→Researcher loop = conditional edges in LangGraph</li>
+    <li><strong>Router per sub-question</strong> — not one retrieval fits all</li>
+    <li><strong>Shared typed state</strong> — TypedDict passed through all nodes</li>
+    <li><strong>Streaming at every stage</strong> — user sees live progress, not a spinner</li>
+  </ul>
+</div>

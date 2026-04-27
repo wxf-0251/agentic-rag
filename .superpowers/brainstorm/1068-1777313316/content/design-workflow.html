@@ -1,0 +1,126 @@
+<h2>Design: LangGraph Workflow & Data Flow</h2>
+<p class="subtitle">StateGraph with conditional edges and parallel fan-out</p>
+
+<div class="section">
+  <h3>Full StateGraph Definition</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">workflow.py — Nodes & Edges</div>
+  <div class="mockup-body">
+    <pre style="font-family:monospace;font-size:13px;color:#e2e8f0;line-height:1.7">
+
+  graph = StateGraph(AgentState)
+
+  # === Nodes ===
+  graph.add_node("planner", planner_node)           # decompose query → outline
+  graph.add_node("researcher", researcher_node)      # parallel retrieval
+  graph.add_node("writer", writer_node)              # synthesize section
+  graph.add_node("reviewer", reviewer_node)          # quality gate
+
+  # === Edges ===
+  graph.set_entry_point("planner")                   # START → planner
+  graph.add_edge("planner", "researcher")            # planner → researcher
+
+  # Parallel fan-out: 1 researcher per sub-question
+  graph.add_conditional_edges("researcher", router, {
+      "writer": "writer",       # all questions done → writer
+      "researcher": "researcher" # more questions remain → loop
+  })
+
+  graph.add_edge("writer", "reviewer")                # writer → reviewer
+
+  # THE KEY LOOP: reviewer decides next step
+  graph.add_conditional_edges("reviewer", review_gate, {
+      "writer": "writer",         # PASS this section → write next
+      "researcher": "researcher", # FAIL → re-search with refined query
+      "end": END                  # all sections done → finish
+  })
+
+  graph.compile(checkpointer=MemorySaver())
+    </pre>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Data Flow — One Complete Research Cycle</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Step-by-step state transformation</div>
+  <div class="mockup-body">
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:14px">
+
+      <div style="border-left:3px solid #a855f7;padding:8px 12px;background:rgba(168,85,247,0.05)">
+        <strong style="color:#a855f7">1. planner_node</strong><br>
+        <span style="color:#94a3b8">query → sub_questions (5 items) + outline (4 chapters)<br>
+        Sets state.current_section_idx = 0</span>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6;padding:8px 12px;background:rgba(59,130,246,0.05)">
+        <strong style="color:#3b82f6">2. researcher_node (invoked N times via Send API)</strong><br>
+        <span style="color:#94a3b8">For each sub_question → router picks Tavily/Chroma/YFinance<br>
+        Results accumulated in state.research_results, state.citations</span>
+      </div>
+
+      <div style="border-left:3px solid #22c55e;padding:8px 12px;background:rgba(34,197,94,0.05)">
+        <strong style="color:#22c55e">3. writer_node</strong><br>
+        <span style="color:#94a3b8">reads outline[current_section] + all research → drafts section<br>
+        Appends to state.completed_sections</span>
+      </div>
+
+      <div style="border-left:3px solid #ef4444;padding:8px 12px;background:rgba(239,68,68,0.05)">
+        <strong style="color:#ef4444">4. reviewer_node</strong><br>
+        <span style="color:#94a3b8">Checks: citation coverage, data consistency, logic gaps<br>
+        → PASS: current_section_idx += 1, go to writer for next section<br>
+        → FAIL: append refined queries, state.search_iteration += 1, go to researcher</span>
+      </div>
+
+      <div style="border-left:3px solid #f59e0b;padding:8px 12px;background:rgba(245,158,11,0.05)">
+        <strong style="color:#f59e0b">5. Terminal condition</strong><br>
+        <span style="color:#94a3b8">All sections PASS review AND current_section_idx >= len(outline) → END</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Router Logic — Per Sub-Question Data Source</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">How the researcher picks its tool</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:8px;color:#f59e0b">Question Type</th>
+        <th style="text-align:left;padding:8px;color:#f59e0b">Example</th>
+        <th style="text-align:left;padding:8px;color:#f59e0b">Tool</th>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px">latest_news</td>
+        <td style="padding:8px;font-size:13px">"2025-2026 人形机器人融资事件"</td>
+        <td style="padding:8px;color:#3b82f6">Tavily Search</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px">technical_concept</td>
+        <td style="padding:8px;font-size:13px">"谐波减速器 vs RV 减速器原理"</td>
+        <td style="padding:8px;color:#a855f7">Chroma DB</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px">financial_data</td>
+        <td style="padding:8px;font-size:13px">"特斯拉近一年股价走势"</td>
+        <td style="padding:8px;color:#22c55e">Yahoo Finance</td>
+      </tr>
+      <tr>
+        <td style="padding:8px">mixed</td>
+        <td style="padding:8px;font-size:13px">"核心零部件供应商竞争格局"</td>
+        <td style="padding:8px;color:#f59e0b">Tavily + Chroma (merge)</td>
+      </tr>
+    </table>
+    <p style="margin-top:12px;font-size:14px;color:#94a3b8">
+      Router is a lightweight LLM call (Haiku) that classifies the sub-question type.
+      Planner sets initial type; Researcher can override if needed.
+    </p>
+  </div>
+</div>

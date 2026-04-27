@@ -1,0 +1,139 @@
+<h2>Design: Streamlit UI & Streaming Output</h2>
+<p class="subtitle">Real-time progress, not a 3-minute spinner</p>
+
+<div class="section">
+  <h3>UI Layout — 3-Panel Design</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Streamlit Page Structure</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:12px;font-size:14px">
+      <div style="flex:1;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:12px">
+        <div style="color:#a855f7;font-weight:bold;margin-bottom:8px">Left Sidebar (300px)</div>
+        <div style="color:#94a3b8;line-height:2">
+          ▸ Query Input Box<br>
+          ▸ Model Selector<br>
+          ▸ Data Source Toggles<br>
+          ▸ [Start Research] Button<br>
+          <hr style="border-color:rgba(255,255,255,0.05)">
+          ▸ Live Progress Indicator<br>
+          ▸ Research Log (collapsible)
+        </div>
+      </div>
+      <div style="flex:2.5;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:12px">
+        <div style="color:#22c55e;font-weight:bold;margin-bottom:8px">Main Panel — Streaming Report</div>
+        <div style="color:#94a3b8;line-height:2">
+          ▸ Outline preview (after Planner)<br>
+          ▸ Research in-progress cards (per sub-question)<br>
+          ▸ Draft sections stream in as written<br>
+          ▸ Citation badges appear inline [1] [2]<br>
+          ▸ Auto-generated charts (matplotlib → PNG)
+        </div>
+      </div>
+      <div style="flex:1;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:12px">
+        <div style="color:#f59e0b;font-weight:bold;margin-bottom:8px">Right Panel — Sources</div>
+        <div style="color:#94a3b8;line-height:2">
+          ▸ Live citation list<br>
+          ▸ Source quality scores<br>
+          ▸ Clickable links<br>
+          ▸ Export: PDF / Markdown
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Streaming Strategy — 4 Channels</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">How progress reaches the UI in real-time</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:8px;color:#a855f7">Stream</th>
+        <th style="text-align:left;padding:8px;color:#a855f7">Trigger</th>
+        <th style="text-align:left;padding:8px;color:#a855f7">Content</th>
+        <th style="text-align:left;padding:8px;color:#a855f7">UI Element</th>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px">outline_stream</td>
+        <td style="padding:8px;font-size:13px">Planner completes</td>
+        <td style="padding:8px;font-size:13px">Report outline JSON</td>
+        <td style="padding:8px;font-size:13px">Chapter cards with progress bars</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px">research_stream</td>
+        <td style="padding:8px;font-size:13px">Each Researcher completes</td>
+        <td style="padding:8px;font-size:13px">Query + sources found</td>
+        <td style="padding:8px;font-size:13px">Animated progress cards</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px">draft_stream</td>
+        <td style="padding:8px;font-size:13px">Writer yields tokens</td>
+        <td style="padding:8px;font-size:13px">Markdown text chunks</td>
+        <td style="padding:8px;font-size:13px">Streaming markdown in main panel</td>
+      </tr>
+      <tr>
+        <td style="padding:8px">review_stream</td>
+        <td style="padding:8px;font-size:13px">Reviewer completes</td>
+        <td style="padding:8px;font-size:13px">PASS/FAIL + critique</td>
+        <td style="padding:8px;font-size:13px">Status badge + re-search indicator</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Implementation: LangGraph stream_mode + Streamlit callbacks</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Code sketch — main.py</div>
+  <div class="mockup-body">
+    <pre style="font-family:monospace;font-size:13px;color:#e2e8f0;line-height:1.7">
+
+# LangGraph emits events per node execution
+for event in graph.stream(
+    {"query": user_query},
+    stream_mode="updates",    # yields {node_name: output} per step
+    config={"callbacks": [StreamlitCallbackHandler(st_placeholders)]}
+):
+    node_name = list(event.keys())[0]
+    node_output = event[node_name]
+
+    if node_name == "planner":
+        render_outline(node_output["outline"], st_placeholders["outline"])
+    elif node_name == "researcher":
+        update_research_card(node_output, st_placeholders["research"])
+    elif node_name == "writer":
+        stream_section_text(node_output["text"], st_placeholders["draft"])
+    elif node_name == "reviewer":
+        show_review_status(node_output, st_placeholders["review"])
+    </pre>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Report Rendering: Markdown + Charts + Citations</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">renderer.py capabilities</div>
+  <div class="mockup-body">
+    <ul style="font-size:14px;color:#94a3b8;line-height:2">
+      <li><strong>Markdown → HTML</strong>: Writer outputs clean Markdown; rendered with st.markdown()</li>
+      <li><strong>Inline citations</strong>: [1], [2] style → linked to right-panel source list. Writer prompt enforces citation format</li>
+      <li><strong>Auto charts</strong>: Writer outputs &lt;chart&gt; tags; renderer.py runs matplotlib → st.image(). Example:
+        <pre style="font-family:monospace;font-size:13px;color:#e2e8f0;margin:8px 0">
+&lt;chart type="bar" title="Top 5 谐波减速器供应商"&gt;
+  x: ["绿的谐波","日本哈默纳科","来福谐波",...]
+  y: [35,28,15,...]
+&lt;/chart&gt;</pre>
+      </li>
+      <li><strong>Export</strong>: st.download_button → PDF (via weasyprint) or .md download</li>
+    </ul>
+  </div>
+</div>

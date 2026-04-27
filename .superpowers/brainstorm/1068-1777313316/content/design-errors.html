@@ -1,0 +1,120 @@
+<h2>Design: Error Handling & Edge Cases</h2>
+<p class="subtitle">Graceful degradation, not crash-and-burn</p>
+
+<div class="section">
+  <h3>Failure Modes & Recovery Strategies</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">What can go wrong at each stage</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:8px;color:#ef4444">Failure</th>
+        <th style="text-align:left;padding:8px;color:#22c55e">Recovery</th>
+        <th style="text-align:left;padding:8px;color:#94a3b8">UX</th>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px"><strong>Tavily API rate limit / timeout</strong></td>
+        <td style="padding:8px">Exponential backoff (1s→2s→4s), max 3 retries. If all fail: fallback to Chroma local search</td>
+        <td style="padding:8px">Research card shows "Retrying..." → "Using local backup"</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px"><strong>Yahoo Finance: symbol not found / no data</strong></td>
+        <td style="padding:8px">Return empty result with error metadata. Writer skips chart, notes "data unavailable"</td>
+        <td style="padding:8px">Inline note: "Financial data temporarily unavailable"</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px"><strong>Chroma DB empty / no relevant docs</strong></td>
+        <td style="padding:8px">Auto-escalate to Tavily search for that sub-question</td>
+        <td style="padding:8px">"No local results → searching web..."</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px"><strong>Reviewer rejects section 3+ times</strong></td>
+        <td style="padding:8px">max_iterations=3 safety cap. After 3rd fail: accept with caveat flag</td>
+        <td style="padding:8px">Yellow banner: "This section has limited source coverage"</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:8px"><strong>LLM API error (5xx, rate limit)</strong></td>
+        <td style="padding:8px">Retry with exponential backoff. If persistent: save partial state, offer resume</td>
+        <td style="padding:8px">"Service interruption — partial report saved"</td>
+      </tr>
+      <tr>
+        <td style="padding:8px"><strong>Query is too vague / unresearchable</strong></td>
+        <td style="padding:8px">Planner detects vagueness → asks clarifying questions via UI before proceeding</td>
+        <td style="padding:8px">Chat-style clarification prompt in sidebar</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Safety Limits</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Preventing runaway loops and cost explosions</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:16px;font-size:15px">
+      <div style="flex:1;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:12px">
+        <div style="color:#f59e0b;font-weight:bold;margin-bottom:6px">Loop Breakers</div>
+        <ul style="color:#94a3b8;line-height:1.8">
+          <li>max_iterations = 3 (per section)</li>
+          <li>max_sub_questions = 7</li>
+          <li>max_total_time = 300s (5 min)</li>
+          <li>max_tokens_per_section = 4000</li>
+        </ul>
+      </div>
+      <div style="flex:1;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:12px">
+        <div style="color:#f59e0b;font-weight:bold;margin-bottom:6px">Cost Guards</div>
+        <ul style="color:#94a3b8;line-height:1.8">
+          <li>Prompt Caching on planner/writer/reviewer prompts</li>
+          <li>Haiku for all researcher work (cheap)</li>
+          <li>Estimated cost per report: ~$0.50-1.50</li>
+          <li>Configurable max_budget in config.py</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>State Persistence & Resume</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">LangGraph checkpointing</div>
+  <div class="mockup-body">
+    <pre style="font-family:monospace;font-size:14px;color:#e2e8f0;line-height:1.6">
+# MemorySaver → SqliteSaver for production
+graph.compile(checkpointer=SqliteSaver.from_conn_string("checkpoints.db"))
+
+# If Streamlit restarts mid-report:
+#   state = graph.get_state(config) → resume from last checkpoint
+#   User sees: "Recovering from checkpoint..." → continues
+    </pre>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Deployment Config</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">config.py</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:8px;color:#a855f7">Config Key</th>
+        <th style="text-align:left;padding:8px;color:#a855f7">Default</th>
+        <th style="text-align:left;padding:8px;color:#a855f7">Purpose</th>
+      </tr>
+      <tr><td style="padding:8px">ANTHROPIC_API_KEY</td><td style="padding:8px">env var</td><td style="padding:8px">Claude Opus + Haiku access</td></tr>
+      <tr><td style="padding:8px">TAVILY_API_KEY</td><td style="padding:8px">env var</td><td style="padding:8px">Web search</td></tr>
+      <tr><td style="padding:8px">CHROMA_PERSIST_DIR</td><td style="padding:8px">./chroma_data</td><td style="padding:8px">Local vector DB path</td></tr>
+      <tr><td style="padding:8px">EMBEDDING_MODEL</td><td style="padding:8px">text-embedding-3-small</td><td style="padding:8px">OpenAI embeddings for Chroma</td></tr>
+      <tr><td style="padding:8px">MAX_RESEARCH_ITERATIONS</td><td style="padding:8px">3</td><td style="padding:8px">Re-search loop cap</td></tr>
+      <tr><td style="padding:8px">MAX_BUDGET_USD</td><td style="padding:8px">2.00</td><td style="padding:8px">Hard cost limit per report</td></tr>
+    </table>
+  </div>
+</div>

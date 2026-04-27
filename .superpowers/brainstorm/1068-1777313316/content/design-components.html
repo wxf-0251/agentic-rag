@@ -1,0 +1,116 @@
+<h2>Design: Project Structure & Components</h2>
+<p class="subtitle">Approach A — LangGraph + Custom Agents</p>
+
+<div class="section">
+  <h3>Project Structure</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">File Tree</div>
+  <div class="mockup-body">
+    <pre style="font-family:monospace;font-size:14px;color:#e2e8f0;line-height:1.7">
+agentic_rag/
+├── main.py                    # Streamlit entry point
+├── config.py                  # API keys, model config, env vars
+├── graph/
+│   ├── __init__.py
+│   ├── state.py               # AgentState TypedDict
+│   └── workflow.py            # LangGraph StateGraph definition
+├── agents/
+│   ├── __init__.py
+│   ├── planner.py             # Query decomposition + outline
+│   ├── researcher.py          # Parallel retrieval with routing
+│   ├── writer.py              # Section synthesis
+│   └── reviewer.py            # Quality check + critique
+├── tools/
+│   ├── __init__.py
+│   ├── search.py              # Tavily API wrapper
+│   ├── chroma_store.py        # ChromaDB vector search
+│   └── finance.py             # Yahoo Finance (yfinance)
+├── prompts/
+│   ├── planner.md             # Planner system prompt
+│   ├── researcher.md          # Researcher system prompt
+│   ├── writer.md              # Writer system prompt
+│   └── reviewer.md            # Reviewer system prompt
+├── ui/
+│   ├── __init__.py
+│   ├── components.py          # Streamlit reusable widgets
+│   └── renderer.py            # Report render (markdown + charts)
+├── requirements.txt
+└── .env.example
+    </pre>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Core Components</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Agent Responsibilities</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+        <th style="text-align:left;padding:10px;color:#a855f7">Agent</th>
+        <th style="text-align:left;padding:10px;color:#a855f7">Model</th>
+        <th style="text-align:left;padding:10px;color:#a855f7">Input</th>
+        <th style="text-align:left;padding:10px;color:#a855f7">Output</th>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:10px">Planner</td>
+        <td style="padding:10px;color:#22c55e">Opus 4</td>
+        <td style="padding:10px;font-size:13px">User query string</td>
+        <td style="padding:10px;font-size:13px">List[SubQuestion] + ReportOutline</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:10px">Researcher</td>
+        <td style="padding:10px;color:#f59e0b">Haiku 4</td>
+        <td style="padding:10px;font-size:13px">SubQuestion + data_source</td>
+        <td style="padding:10px;font-size:13px">RetrievedContext + List[Citation]</td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:10px">Writer</td>
+        <td style="padding:10px;color:#22c55e">Opus 4</td>
+        <td style="padding:10px;font-size:13px">SectionOutline + all research</td>
+        <td style="padding:10px;font-size:13px">ReportSection (markdown)</td>
+      </tr>
+      <tr>
+        <td style="padding:10px">Reviewer</td>
+        <td style="padding:10px;color:#22c55e">Opus 4</td>
+        <td style="padding:10px;font-size:13px">ReportSection + sources</td>
+        <td style="padding:10px;font-size:13px">ReviewVerdict (PASS / FAIL + reason)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>Shared State (AgentState)</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">TypedDict — single source of truth through the graph</div>
+  <div class="mockup-body">
+    <pre style="font-family:monospace;font-size:13px;color:#e2e8f0;line-height:1.6">
+class AgentState(TypedDict):
+    # Input
+    query: str
+    # Planner output
+    sub_questions: List[SubQuestion]
+    outline: ReportOutline
+    # Researcher output (accumulated)
+    research_results: dict  # {question_id: RetrievedContext}
+    citations: List[Citation]
+    # Writer output (accumulated)
+    completed_sections: List[ReportSection]
+    current_section_idx: int
+    # Reviewer output
+    review_history: List[ReviewResult]
+    # Control flow
+    search_iteration: int       # tracks re-search loop depth
+    max_iterations: int         # safety limit (default 3)
+    # Streaming
+    progress_messages: List[str]
+    </pre>
+  </div>
+</div>

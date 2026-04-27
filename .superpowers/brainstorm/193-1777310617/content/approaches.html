@@ -1,0 +1,79 @@
+<h2>3 Implementation Approaches</h2>
+<p class="subtitle">Same core design, different abstraction levels</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>LangGraph + Custom Agents (推荐)</h3>
+      <p>StateGraph 编排 + 手写 Agent Node + Anthropic SDK 直接调用</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pros</h4>
+          <ul>
+            <li>每个 Agent 行为完全可控，Prompt 精细调优</li>
+            <li>LangGraph 内置 checkpoint/streaming/重试</li>
+            <li>Reviewer→Re-search 循环自然映射到条件边</li>
+            <li>工业级可扩展（加 Agent 只需加 Node）</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>代码量最多 (~1500 LOC)</li>
+            <li>需要理解 LangGraph 概念 (StateGraph, ConditionalEdges, Send API)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>LangChain + CrewAI Hybrid</h3>
+      <p>CrewAI 角色化 Agent 定义 + LangChain RetrievalQA 链路</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pros</h4>
+          <ul>
+            <li>Agent 角色定义快（Planner/Researcher/Writer 有现成模板）</li>
+            <li>LangChain 生态工具链成熟</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>Reviewer→Re-search 循环在 CrewAI 里是 hack</li>
+            <li>流式输出很难控制粒度</li>
+            <li>框架黑盒调试困难</li>
+            <li>CrewAI 底层也是 LangGraph，多一层抽象</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Pure Anthropic SDK + 手写 Loop</h3>
+      <p>最小依赖，手动实现 Agent While-Loop + Tool Use</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pros</h4>
+          <ul>
+            <li>零框架依赖，完全透明</li>
+            <li>代码量最少启动快</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>手动实现状态管理/并行/重试——你最终会写出半个 LangGraph</li>
+            <li>流式输出需要自己写 SSE/WebSocket</li>
+            <li>扩展性差，加新 Agent 要改动核心 loop</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <p><strong>推荐 A：</strong>LangGraph 的 StateGraph + ConditionalEdges 天然匹配你的 "循环反思 (Reasoning Loop)" 需求——Reviewer 不通过就回到 Researcher，这正是 LangGraph 条件边的设计初衷。手写 Agent Node 保证每个 Agent 的 Prompt 质量，比 CrewAI 的黑盒模板强得多。</p>
+</div>
