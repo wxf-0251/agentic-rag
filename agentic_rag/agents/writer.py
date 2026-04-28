@@ -1,13 +1,15 @@
+import os
 import json
 from agentic_rag.config import get_anthropic_client, WRITER_MODEL, MAX_TOKENS_PER_SECTION
 
+_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "writer.md")
 SYSTEM_PROMPT = None
 
 
 def _load_prompt() -> str:
     global SYSTEM_PROMPT
     if SYSTEM_PROMPT is None:
-        with open("agentic_rag/prompts/writer.md", "r") as f:
+        with open(_PROMPT_PATH, "r") as f:
             SYSTEM_PROMPT = f.read()
     return SYSTEM_PROMPT
 

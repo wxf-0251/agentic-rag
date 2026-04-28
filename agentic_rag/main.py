@@ -1,3 +1,11 @@
+import sys
+import os
+# Ensure the parent directory is on sys.path so 'agentic_rag' is importable
+# from any working directory (e.g. when running `cd agentic_rag && streamlit run main.py`)
+_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _parent not in sys.path:
+    sys.path.insert(0, _parent)
+
 import streamlit as st
 from agentic_rag.graph.workflow import build_graph
 from agentic_rag.graph.state import AgentState

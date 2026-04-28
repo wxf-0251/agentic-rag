@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 import anthropic
 
-load_dotenv()
+# Load .env from the same directory as this config file
+_env_path = Path(__file__).parent / ".env"
+load_dotenv(_env_path)
 
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")

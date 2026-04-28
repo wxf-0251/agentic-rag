@@ -1,16 +1,18 @@
+import os
 import json
 from agentic_rag.config import get_anthropic_client, RESEARCHER_MODEL
 from agentic_rag.tools.search import tavily_search
 from agentic_rag.tools.chroma_store import chroma_search
 from agentic_rag.tools.finance import fetch_stock_data
 
+_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "researcher.md")
 SYSTEM_PROMPT = None
 
 
 def _load_prompt() -> str:
     global SYSTEM_PROMPT
     if SYSTEM_PROMPT is None:
-        with open("agentic_rag/prompts/researcher.md", "r") as f:
+        with open(_PROMPT_PATH, "r") as f:
             SYSTEM_PROMPT = f.read()
     return SYSTEM_PROMPT
 
