@@ -1,20 +1,10 @@
 import json
-from typing import Literal
-import anthropic
-from agentic_rag.config import ANTHROPIC_API_KEY, RESEARCHER_MODEL
+from agentic_rag.config import get_anthropic_client, RESEARCHER_MODEL
 from agentic_rag.tools.search import tavily_search
 from agentic_rag.tools.chroma_store import chroma_search
 from agentic_rag.tools.finance import fetch_stock_data
 
-_client = None
 SYSTEM_PROMPT = None
-
-
-def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    return _client
 
 
 def _load_prompt() -> str:
@@ -57,7 +47,7 @@ def run_researcher(sub_question: dict) -> dict:
 
     user_content = f"Sub-question: {sub_question['text']}\n\nSearch results:\n{json.dumps(search_results, ensure_ascii=False)}"
 
-    response = _get_client().messages.create(
+    response = get_anthropic_client().messages.create(
         model=RESEARCHER_MODEL,
         max_tokens=1500,
         system=[{"type": "text", "text": _load_prompt()}],

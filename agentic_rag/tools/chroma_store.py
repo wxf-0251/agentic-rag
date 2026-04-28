@@ -1,7 +1,7 @@
 from typing import List, Optional
 import chromadb
 from chromadb.utils import embedding_functions
-from agentic_rag.config import CHROMA_PERSIST_DIR, OPENAI_API_KEY, EMBEDDING_MODEL
+from agentic_rag.config import CHROMA_PERSIST_DIR, OPENAI_API_KEY, OPENAI_BASE_URL, EMBEDDING_MODEL
 
 ChromaResult = dict   # {"content": str, "metadata": dict, "distance": float}
 
@@ -9,6 +9,7 @@ _client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
 _embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
     api_key=OPENAI_API_KEY,
     model_name=EMBEDDING_MODEL,
+    api_base=OPENAI_BASE_URL,
 )
 
 

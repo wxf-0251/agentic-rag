@@ -1,16 +1,7 @@
 import json
-import anthropic
-from agentic_rag.config import ANTHROPIC_API_KEY, WRITER_MODEL, MAX_TOKENS_PER_SECTION
+from agentic_rag.config import get_anthropic_client, WRITER_MODEL, MAX_TOKENS_PER_SECTION
 
-_client = None
 SYSTEM_PROMPT = None
-
-
-def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    return _client
 
 
 def _load_prompt() -> str:
@@ -29,7 +20,7 @@ def run_writer(section_index: int, section_outline: dict, research_results: dict
         "citations": citations,
     }, ensure_ascii=False)
 
-    response = _get_client().messages.create(
+    response = get_anthropic_client().messages.create(
         model=WRITER_MODEL,
         max_tokens=MAX_TOKENS_PER_SECTION,
         system=[

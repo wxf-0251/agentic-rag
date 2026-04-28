@@ -1,17 +1,7 @@
 import json
-from typing import Optional
-import anthropic
-from agentic_rag.config import ANTHROPIC_API_KEY, PLANNER_MODEL, MAX_SUB_QUESTIONS
+from agentic_rag.config import get_anthropic_client, PLANNER_MODEL, MAX_SUB_QUESTIONS
 
-_client = None
 SYSTEM_PROMPT = None
-
-
-def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    return _client
 
 
 def _load_prompt() -> str:
@@ -23,7 +13,7 @@ def _load_prompt() -> str:
 
 
 def run_planner(query: str) -> dict:
-    response = _get_client().messages.create(
+    response = get_anthropic_client().messages.create(
         model=PLANNER_MODEL,
         max_tokens=2000,
         system=[

@@ -1,16 +1,7 @@
 import json
-import anthropic
-from agentic_rag.config import ANTHROPIC_API_KEY, REVIEWER_MODEL
+from agentic_rag.config import get_anthropic_client, REVIEWER_MODEL
 
-_client = None
 SYSTEM_PROMPT = None
-
-
-def _get_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    return _client
 
 
 def _load_prompt() -> str:
@@ -28,7 +19,7 @@ def run_reviewer(section: dict, research_results: dict, citations: list) -> dict
         "citations": citations,
     }, ensure_ascii=False)
 
-    response = _get_client().messages.create(
+    response = get_anthropic_client().messages.create(
         model=REVIEWER_MODEL,
         max_tokens=1000,
         system=[

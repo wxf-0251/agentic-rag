@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-import agentic_rag.agents.reviewer as reviewer_mod
+import agentic_rag.config as config_mod
 from agentic_rag.agents.reviewer import run_reviewer
 
 
@@ -13,11 +13,11 @@ def _make_mock_response(json_str: str) -> MagicMock:
 
 
 def test_reviewer_passes_good_section():
-    reviewer_mod._client = None
+    config_mod._client = None
     mock_response = _make_mock_response(
         '{"verdict":"PASS","critique":"Well-sourced and logically sound.","issues":[],"suggested_keywords":null}'
     )
-    with patch("agentic_rag.agents.reviewer.anthropic.Anthropic") as mock_anthropic:
+    with patch("agentic_rag.config.anthropic.Anthropic") as mock_anthropic:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
         mock_anthropic.return_value = mock_client
@@ -33,11 +33,11 @@ def test_reviewer_passes_good_section():
 
 
 def test_reviewer_fails_uncited_claims():
-    reviewer_mod._client = None
+    config_mod._client = None
     mock_response = _make_mock_response(
         '{"verdict":"FAIL","critique":"Claims without citations.","issues":["uncited_claim"],"suggested_keywords":"humanoid robot market share 2026"}'
     )
-    with patch("agentic_rag.agents.reviewer.anthropic.Anthropic") as mock_anthropic:
+    with patch("agentic_rag.config.anthropic.Anthropic") as mock_anthropic:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
         mock_anthropic.return_value = mock_client

@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-import agentic_rag.agents.writer as writer_mod
+import agentic_rag.config as config_mod
 from agentic_rag.agents.writer import run_writer
 
 
@@ -13,12 +13,12 @@ def _make_mock_response(json_str: str) -> MagicMock:
 
 
 def test_writer_synthesizes_section():
-    # Reset the module-level singleton so lazy init picks up the mocked class
-    writer_mod._client = None
+    # Reset the singleton so lazy init picks up the mocked class
+    config_mod._client = None
     mock_response = _make_mock_response(
         '{"section_index":0,"title":"Market Overview","content":"The humanoid robot market is growing rapidly [1]. Key players include Tesla and Boston Dynamics [2].\\n\\n<chart type=\\"bar\\" title=\\"Market Growth\\">\\n  x: [\\"2024\\",\\"2025\\",\\"2026\\"]\\n  y: [5.2, 8.1, 13.4]\\n</chart>","citations_used":["c1","c2"]}'
     )
-    with patch("agentic_rag.agents.writer.anthropic.Anthropic") as mock_anthropic:
+    with patch("agentic_rag.config.anthropic.Anthropic") as mock_anthropic:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
         mock_anthropic.return_value = mock_client
@@ -39,12 +39,12 @@ def test_writer_synthesizes_section():
 
 
 def test_writer_handles_empty_research():
-    # Reset the module-level singleton so lazy init picks up the mocked class
-    writer_mod._client = None
+    # Reset the singleton so lazy init picks up the mocked class
+    config_mod._client = None
     mock_response = _make_mock_response(
         '{"section_index":0,"title":"Risks","content":"Data on this aspect remains limited. Further research is needed.","citations_used":[]}'
     )
-    with patch("agentic_rag.agents.writer.anthropic.Anthropic") as mock_anthropic:
+    with patch("agentic_rag.config.anthropic.Anthropic") as mock_anthropic:
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
         mock_anthropic.return_value = mock_client
