@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Optional, Literal, Any
+from typing import TypedDict, List, Optional, Literal
 
 
 class SubQuestion(TypedDict):
