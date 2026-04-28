@@ -1,4 +1,9 @@
-from typing import TypedDict, List, Optional, Literal
+from typing import TypedDict, List, Optional, Literal, Annotated
+from operator import add
+
+
+def _merge_dicts(a: dict, b: dict) -> dict:
+    return {**a, **b}
 
 
 class SubQuestion(TypedDict):
@@ -40,11 +45,11 @@ class AgentState(TypedDict):
     query: str
     sub_questions: List[SubQuestion]
     outline: Optional[ReportOutline]
-    research_results: dict              # {question_id: str}
-    citations: List[Citation]
+    research_results: Annotated[dict, _merge_dicts]     # {question_id: str}
+    citations: Annotated[List[Citation], add]
     completed_sections: List[ReportSection]
     current_section_idx: int
     review_history: List[ReviewResult]
     search_iteration: int
     max_iterations: int
-    progress_messages: List[str]
+    progress_messages: Annotated[List[str], add]

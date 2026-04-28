@@ -31,11 +31,9 @@ def researcher_node(state: AgentState) -> dict:
         result = run_researcher(sub_q)
         key = result["sub_question_id"]
         new_citations = result.get("citations", [])
-        existing_citations = state.get("citations", [])
-        existing_results = state.get("research_results", {})
         return {
-            "research_results": {**existing_results, key: result.get("findings", "")},
-            "citations": existing_citations + new_citations,
+            "research_results": {key: result.get("findings", "")},
+            "citations": new_citations,
             "progress_messages": [f"Researched {key}: {len(new_citations)} sources found"],
         }
     return {}
@@ -60,9 +58,13 @@ def writer_node(state: AgentState) -> dict:
         research_results=state["research_results"],
         citations=state["citations"],
     )
-    completed = state.get("completed_sections", [])
+    sections = list(state.get("completed_sections", []))
+    if idx < len(sections):
+        sections[idx] = result
+    else:
+        sections.append(result)
     return {
-        "completed_sections": completed + [result],
+        "completed_sections": sections,
         "progress_messages": [f"Written section {idx+1}/{len(outline['sections'])}: {result['title']}"],
     }
 
@@ -76,11 +78,25 @@ def reviewer_node(state: AgentState) -> dict:
         research_results=state["research_results"],
         citations=state["citations"],
     )
-    review_history = state.get("review_history", [])
-    return {
-        "review_history": review_history + [result],
-        "progress_messages": [f"Review {idx+1}: {result['verdict']}"],
-    }
+
+    verdict = result["verdict"]
+    iteration = state.get("search_iteration", 0)
+    max_iter = state.get("max_iterations", 3)
+    history = list(state.get("review_history", []))
+
+    updates = {"review_history": history + [result], "progress_messages": [f"Review {idx+1}: {verdict}"]}
+
+    if verdict == "PASS":
+        updates["search_iteration"] = 0
+        updates["current_section_idx"] = idx + 1
+    elif iteration + 1 >= max_iter:
+        updates["search_iteration"] = 0
+        updates["current_section_idx"] = idx + 1
+        updates["progress_messages"] = [f"Review {idx+1}: FORCED ACCEPT (max {max_iter} iterations)"]
+    else:
+        updates["search_iteration"] = iteration + 1
+
+    return updates
 
 
 def review_gate(state: AgentState) -> Literal["writer", "researcher", "end"]:
@@ -94,18 +110,13 @@ def review_gate(state: AgentState) -> Literal["writer", "researcher", "end"]:
     last_review = review_history[-1]
 
     if last_review["verdict"] == "PASS":
-        next_idx = idx + 1
-        if next_idx >= len(outline["sections"]):
+        if idx >= len(outline["sections"]):
             return "end"
         return "writer"
 
-    # FAIL: check iteration cap
-    iterations = state.get("search_iteration", 0)
-    max_iter = state.get("max_iterations", 3)
-    if iterations >= max_iter:
-        # Force accept with caveat
-        next_idx = idx + 1
-        if next_idx >= len(outline["sections"]):
+    # FAIL verdict: search_iteration 0 means force-accepted
+    if state.get("search_iteration", 0) == 0:
+        if idx >= len(outline["sections"]):
             return "end"
         return "writer"
 
