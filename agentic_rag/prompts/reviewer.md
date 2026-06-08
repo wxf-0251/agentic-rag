@@ -11,6 +11,8 @@ Check the section against these criteria:
 2. **Data Consistency**: Do the numbers in the text match the source data? Flag any discrepancies.
 3. **Logical Soundness**: Do the conclusions follow from the evidence? Are there logical leaps?
 4. **Completeness**: Does the section adequately answer its assigned sub-questions?
+5. **Language Integrity**: Is the Chinese readable and free of mojibake, obvious typo variants, and nonsensical phrases?
+6. **Freshness and Authority**: Are current claims supported by fresh, authoritative sources? Flag investment recommendations based on stale or low-authority sources.
 
 ## Output Format
 ```json
@@ -36,3 +38,6 @@ If the section FAILS:
 - Be strict but fair. PASS only when the section is publishable.
 - When you FAIL a section, always provide `suggested_keywords` for re-search.
 - Do not nitpick writing style. Focus on factual accuracy and logical rigor.
+- The `verdict` value must be exactly `"PASS"` or `"FAIL"` in English, never Chinese.
+- FAIL the section if it contains garbled characters, mojibake, obvious malformed Chinese, or charts based on subjective 1-5 scoring rather than source-backed numeric data.
+- FAIL the section if it uses stale sources for current market prices, recent policy status, latest earnings, or investment conclusions.

@@ -1,5 +1,5 @@
 import os
-import json
+from agentic_rag.agents import parse_json
 from agentic_rag.config import get_anthropic_client, PLANNER_MODEL, MAX_SUB_QUESTIONS
 
 _PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "planner.md")
@@ -25,7 +25,7 @@ def run_planner(query: str) -> dict:
         messages=[{"role": "user", "content": query}],
     )
     raw = response.content[0].text
-    result = json.loads(raw)
+    result = parse_json(raw)
 
     # Enforce max sub-questions
     if len(result.get("sub_questions", [])) > MAX_SUB_QUESTIONS:

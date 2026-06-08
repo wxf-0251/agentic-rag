@@ -8,6 +8,7 @@ openai>=1.50.0
 yfinance>=0.2.40
 matplotlib>=3.9.0
 weasyprint>=62.0
+reportlab>=4.0.0
 pandas>=2.2.0
 python-dotenv>=1.0.0
 pytest>=8.0.0

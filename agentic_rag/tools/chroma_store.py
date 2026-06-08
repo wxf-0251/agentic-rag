@@ -1,15 +1,73 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
+import requests
 import chromadb
-from chromadb.utils import embedding_functions
-from agentic_rag.config import CHROMA_PERSIST_DIR, OPENAI_API_KEY, OPENAI_BASE_URL, EMBEDDING_MODEL
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+from agentic_rag.config import (
+    CHROMA_PERSIST_DIR,
+    ZHIPUAI_API_KEY,
+    ZHIPUAI_BASE_URL,
+    EMBEDDING_MODEL,
+    EMBEDDING_DIMENSIONS,
+)
 
 ChromaResult = dict   # {"content": str, "metadata": dict, "distance": float}
 
 _client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
-_embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=OPENAI_API_KEY,
+
+
+class ZhipuAIEmbeddingFunction(EmbeddingFunction[Documents]):
+    def __init__(
+        self,
+        api_key: str,
+        model_name: str = "embedding-3",
+        api_base: str = "https://open.bigmodel.cn/api/paas/v4",
+        dimensions: Optional[int] = None,
+    ):
+        self.api_key = api_key
+        self.model_name = model_name
+        self.api_base = api_base.rstrip("/")
+        self.dimensions = dimensions
+
+    def __call__(self, input: Documents) -> Embeddings:
+        payload: Dict[str, Any] = {"model": self.model_name, "input": list(input)}
+        if self.dimensions is not None:
+            payload["dimensions"] = self.dimensions
+
+        response = requests.post(
+            f"{self.api_base}/embeddings",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=60,
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        return [item["embedding"] for item in sorted(data, key=lambda item: item.get("index", 0))]
+
+    @staticmethod
+    def name() -> str:
+        return "zhipuai"
+
+    @staticmethod
+    def build_from_config(config: Dict[str, Any]) -> "ZhipuAIEmbeddingFunction":
+        return ZhipuAIEmbeddingFunction(**config)
+
+    def get_config(self) -> Dict[str, Any]:
+        return {
+            "api_key": self.api_key,
+            "model_name": self.model_name,
+            "api_base": self.api_base,
+            "dimensions": self.dimensions,
+        }
+
+
+_embedding_fn = ZhipuAIEmbeddingFunction(
+    api_key=ZHIPUAI_API_KEY,
     model_name=EMBEDDING_MODEL,
-    api_base=OPENAI_BASE_URL,
+    api_base=ZHIPUAI_BASE_URL,
+    dimensions=EMBEDDING_DIMENSIONS,
 )
 
 

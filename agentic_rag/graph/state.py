@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Optional, Literal, Annotated
+from typing import TypedDict, List, Optional, Literal, Annotated, NotRequired
 from operator import add
 
 
@@ -53,3 +53,4 @@ class AgentState(TypedDict):
     search_iteration: int
     max_iterations: int
     progress_messages: Annotated[List[str], add]
+    source_toggles: NotRequired[dict]

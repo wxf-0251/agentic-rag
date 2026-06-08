@@ -1,5 +1,48 @@
 from unittest.mock import patch, MagicMock
-from agentic_rag.tools.chroma_store import chroma_search, index_documents, ChromaResult
+import pytest
+from agentic_rag.tools.chroma_store import (
+    ZhipuAIEmbeddingFunction,
+    chroma_search,
+    index_documents,
+    ChromaResult,
+)
+
+
+def test_zhipuai_embedding_function_calls_embedding_endpoint():
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {"index": 0, "embedding": [0.1, 0.2]},
+            {"index": 1, "embedding": [0.3, 0.4]},
+        ]
+    }
+
+    with patch("agentic_rag.tools.chroma_store.requests.post", return_value=mock_response) as mock_post:
+        embedding_fn = ZhipuAIEmbeddingFunction(
+            api_key="test-key",
+            model_name="embedding-3",
+            api_base="https://open.bigmodel.cn/api/paas/v4",
+            dimensions=1536,
+        )
+        embeddings = embedding_fn(["hello", "world"])
+
+    mock_post.assert_called_once_with(
+        "https://open.bigmodel.cn/api/paas/v4/embeddings",
+        headers={
+            "Authorization": "Bearer test-key",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "embedding-3",
+            "input": ["hello", "world"],
+            "dimensions": 1536,
+        },
+        timeout=60,
+    )
+    mock_response.raise_for_status.assert_called_once()
+    assert len(embeddings) == 2
+    assert embeddings[0].tolist() == pytest.approx([0.1, 0.2])
+    assert embeddings[1].tolist() == pytest.approx([0.3, 0.4])
 
 
 def test_chroma_search_returns_documents():

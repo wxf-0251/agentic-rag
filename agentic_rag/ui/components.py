@@ -1,5 +1,6 @@
 import streamlit as st
 from typing import List
+from agentic_rag.ui.renderer import dedupe_citations
 
 
 def render_sidebar() -> tuple:
@@ -34,14 +35,22 @@ def render_sidebar() -> tuple:
 
 def render_citation_panel(citations: List[dict]):
     st.markdown("### Sources")
+    citations = dedupe_citations(citations)
     if not citations:
         st.caption("No sources yet...")
         return
-    for i, c in enumerate(citations, 1):
+    for c in citations:
+        i = c.get("number", 0)
         with st.container(border=True):
             st.markdown(f"**[{i}]** [{c['title']}]({c['url']})")
             st.caption(c.get("snippet", "")[:200])
-            st.caption(f"Source: {c.get('source_type', 'unknown')}")
+            quality = (
+                f"Source: {c.get('source_type', 'unknown')} | "
+                f"Freshness: {c.get('freshness_status', 'unknown')} | "
+                f"Date: {c.get('published_date', 'unknown')} | "
+                f"Authority: {c.get('authority_score', 0)}"
+            )
+            st.caption(quality)
 
 
 def render_research_progress(completed: int, total: int):

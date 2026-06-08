@@ -5,7 +5,7 @@ from agentic_rag.tools.search import tavily_search, SearchResult
 def test_tavily_search_returns_structured_results():
     mock_response = {
         "results": [
-            {"title": "Humanoid Robot Market 2026", "url": "https://example.com/1", "content": "The market is growing rapidly..."},
+            {"title": "Humanoid Robot Market 2026", "url": "https://example.com/1", "content": "The market is growing rapidly...", "published_date": "2026-05-18"},
             {"title": "Supply Chain Analysis", "url": "https://example.com/2", "content": "Key suppliers include..."},
         ]
     }
@@ -17,6 +17,7 @@ def test_tavily_search_returns_structured_results():
     assert results[0]["title"] == "Humanoid Robot Market 2026"
     assert results[0]["url"] == "https://example.com/1"
     assert "growing rapidly" in results[0]["content"]
+    assert results[0]["published_date"] == "2026-05-18"
 
 
 def test_tavily_search_handles_empty_results():
