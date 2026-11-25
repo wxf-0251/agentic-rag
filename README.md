@@ -1,6 +1,11 @@
 # Agentic RAG — 自主型深度研究 Agent
 
-> 基于 LangGraph 多智能体协作框架，输入宏观研究问题，自动产出带详细引用的深度研究报告。
+[![CI](https://github.com/wxf-0251/agentic-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/wxf-0251/agentic-rag/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
+![Tests](https://img.shields.io/badge/Tests-84%20passed-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+
+> 基于 LangGraph 多智能体协作框架，输入宏观研究问题，自动产出带详细引用与图表的深度研究报告。
 
 ## 项目描述
 
@@ -12,14 +17,20 @@
 
 **输出结果：** 一份带有行内引用标注、自动生成图表的深度研究报告，支持导出 Markdown / PDF 格式。
 
+### 报告渲染效果示例
+
+> 以下预览由仓库内置 `agentic_rag/ui/renderer.py` 直接渲染（包含 Markdown 排版、`<chart>` 自动转 Matplotlib 图表、行内 `[n]` 引用与带权威度标签的 References 附录）：
+
+![报告渲染示例](docs/assets/report-preview.png)
+
 ## 技术栈
 
 | 层级 | 选型 |
 |------|------|
 | 编程语言 | Python |
 | Agent 编排 | LangGraph（StateGraph） |
-| 大模型 | Anthropic Claude API（Opus 4.7 / Haiku 4.5） |
-| 向量数据库 | ChromaDB |
+| 大模型 | Anthropic Claude API（默认 Opus 4 / Haiku 4，可按环境变量配置） |
+| 向量数据库 | ChromaDB（默认智谱 AI `embedding-3`，兼容 OpenAI `/embeddings`） |
 | 网页搜索 | Tavily Search API |
 | 金融数据 | Yahoo Finance（yfinance） |
 | 前端界面 | Streamlit |
@@ -35,28 +46,28 @@
     │
     ▼
 ┌─────────────────────────────────┐
-│  Planner（Claude Opus 4.7）      │
+│  Planner（Claude Opus 4）        │
 │  将宏观问题拆解为 5-7 个子问题    │
 │  生成报告大纲，按数据源类型归类   │
 └──────────────┬──────────────────┘
                │
                ▼
 ┌─────────────────────────────────┐
-│  Researcher（Claude Haiku 4.5）  │
+│  Researcher（Claude Haiku 4）    │
 │  N 个并行 — Send API fan-out    │
 │  按子问题类型动态路由数据源       │
 └──────────────┬──────────────────┘
                │
                ▼
 ┌─────────────────────────────────┐
-│  Writer（Claude Opus 4.7）       │
+│  Writer（Claude Opus 4）         │
 │  合成单个章节，强制行内引用       │
 │  输出 Markdown + <chart> 标签    │
 └──────────────┬──────────────────┘
                │
                ▼
 ┌─────────────────────────────────┐
-│  Reviewer（Claude Opus 4.7）     │
+│  Reviewer（Claude Opus 4）       │
 │  数值交叉校验 + 来源时效性检测    │
 │  PASS → 下一章节                 │
 │  FAIL → 生成改进关键词，重新检索  │
@@ -111,58 +122,60 @@ Reviewer Agent 对每个章节执行严格的质量审查，不通过则自动�
 
 按任务复杂度分层选用模型，在保证分析质量的同时控制成本：
 
-| Agent | 模型 | 原因 |
-|-------|------|------|
-| Planner | Claude Opus 4.7 | 需要强推理能力拆解复杂问题 |
-| Writer | Claude Opus 4.7 | 长文撰写需高质量逻辑与表达 |
-| Reviewer | Claude Opus 4.7 | 批判性思维需强判断力 |
-| Researcher | Claude Haiku 4.5 | 信息提取与汇总，成本为 Opus 的 1/10 |
+| Agent | 默认模型 | 原因 |
+|-------|----------|------|
+| Planner | Claude Opus 4（`claude-opus-4-20250514`） | 需要强推理能力拆解复杂问题 |
+| Writer | Claude Opus 4（`claude-opus-4-20250514`） | 长文撰写需高质量逻辑与表达 |
+| Reviewer | Claude Opus 4（`claude-opus-4-20250514`） | 批判性思维需强判断力 |
+| Researcher | Claude Haiku 4（`claude-haiku-4-20250514`） | 信息提取与汇总，成本约 Opus 的 1/10 |
 
-单次完整研究报告（20 页、5-7 章节）预算约 **$1**，硬性上限 $2.00。Planner/Writer/Reviewer 的系统提示词启用 Anthropic prompt caching，缓存命中后成本降低约 90%。
+单次完整研究报告（20 页、5-7 章节）预算约 **$1**，硬性上限 $2.00；可通过环境变量自由切换各角色模型 ID。Planner/Writer/Reviewer 的系统提示词启用 Anthropic prompt caching，缓存命中后成本降低约 90%。
 
 ## 项目结构
 
 ```
-agentic_rag/
-├── main.py                    # Streamlit 入口
-├── config.py                  # API 密钥、模型配置、环境变量
-├── cli.py                     # 命令行入口
-├── requirements.txt           # 依赖清单
-├── .env.example               # 环境变量模板
-├── graph/
-│   ├── state.py               # AgentState TypedDict + 数据模型定义
-│   └── workflow.py            # LangGraph StateGraph 工作流（Send API fan-out）
-├── agents/
-│   ├── planner.py             # Planner：问题拆解 + 大纲生成
-│   ├── researcher.py          # Researcher：多源路由检索 + 并行 fan-out
-│   ├── writer.py              # Writer：章节撰写 + 引用强制
-│   └── reviewer.py            # Reviewer：数值校验 + 时效性检测 + 批判闭环
-├── tools/
-│   ├── search.py              # Tavily Search API 封装
-│   ├── chroma_store.py        # ChromaDB 向量检索
-│   ├── finance.py             # Yahoo Finance 金融数据
-│   ├── source_quality.py      # 域名权威度评分 + 时效性加权
-│   └── fact_verifier.py       # 数值事实核查（正则提取 + 交叉匹配）
-├── prompts/
-│   ├── planner.md             # 规划师系统提示词
-│   ├── researcher.md          # 研究员系统提示词
-│   ├── writer.md              # 撰稿人系统提示词
-│   └── reviewer.md            # 审核人系统提示词
-├── ui/
-│   ├── components.py          # Streamlit 可复用组件
-│   ├── renderer.py            # Markdown + <chart> → matplotlib 图表
-│   ├── report_sections.py     # 报告章节渲染
-│   └── stream_events.py       # 流式事件类型定义
-└── tests/
-    ├── test_integration.py    # 端到端集成测试
-    ├── test_workflow.py       # 工作流及 Send API fan-out 测试
-    ├── test_planner.py        # 规划师测试
-    ├── test_researcher.py     # 研究员 + 路由测试
-    ├── test_writer.py         # 撰稿人测试
-    ├── test_reviewer.py       # 审核人 + 批判闭环测试
-    ├── test_fact_verifier.py  # 数值核查测试
-    ├── test_source_quality.py # 信源评分测试
-    └── ...                    # 更多测试文件
+agentic-rag/
+├── .github/workflows/ci.yml       # GitHub Actions 自动化测试（Python 3.11 / 3.12）
+├── agentic_rag/
+│   ├── main.py                    # Streamlit 入口
+│   ├── config.py                  # API 密钥、模型配置、环境变量
+│   ├── cli.py                     # 命令行入口
+│   ├── requirements.txt           # 依赖清单
+│   ├── .env.example               # 环境变量模板
+│   ├── graph/
+│   │   ├── state.py               # AgentState TypedDict + 数据模型定义
+│   │   └── workflow.py            # LangGraph StateGraph 工作流（Send API fan-out）
+│   ├── agents/
+│   │   ├── planner.py             # Planner：问题拆解 + 大纲生成
+│   │   ├── researcher.py          # Researcher：多源路由检索 + 并行 fan-out
+│   │   ├── writer.py              # Writer：章节撰写 + 引用强制
+│   │   └── reviewer.py            # Reviewer：数值校验 + 时效性检测 + 批判闭环
+│   ├── tools/
+│   │   ├── search.py              # Tavily Search API 封装
+│   │   ├── chroma_store.py        # ChromaDB 向量检索（兼容 OpenAI /embeddings）
+│   │   ├── finance.py             # Yahoo Finance 金融数据
+│   │   ├── source_quality.py      # 域名权威度评分 + 时效性加权
+│   │   └── fact_verifier.py       # 数值事实核查（正则提取 + 交叉匹配）
+│   ├── prompts/
+│   │   ├── planner.md             # 规划师系统提示词
+│   │   ├── researcher.md          # 研究员系统提示词
+│   │   ├── writer.md              # 撰稿人系统提示词
+│   │   └── reviewer.md            # 审核人系统提示词
+│   └── ui/
+│       ├── components.py          # Streamlit 可复用组件
+│       ├── renderer.py            # Markdown + <chart> → matplotlib 图表与 PDF 导出
+│       ├── report_sections.py     # 报告章节渲染
+│       └── stream_events.py       # 流式事件类型定义
+└── tests/                         # 84 条单元与集成测试（17 个测试文件）
+    ├── test_integration.py        # 端到端集成测试
+    ├── test_workflow.py           # 工作流及 Send API fan-out 测试
+    ├── test_planner.py            # 规划师测试
+    ├── test_researcher.py         # 研究员 + 路由测试
+    ├── test_writer.py             # 撰稿人测试
+    ├── test_reviewer.py           # 审核人 + 批判闭环测试
+    ├── test_fact_verifier.py      # 数值核查测试
+    ├── test_source_quality.py     # 信源评分测试
+    └── ...                        # 更多测试文件
 ```
 
 ## 快速开始
@@ -172,7 +185,7 @@ agentic_rag/
 - Python 3.11+
 - Anthropic API Key（[console.anthropic.com](https://console.anthropic.com)）
 - Tavily API Key（[tavily.com](https://tavily.com)）
-- OpenAI API Key（用于 ChromaDB 嵌入，[platform.openai.com](https://platform.openai.com)）
+- 智谱 AI API Key（默认用于 ChromaDB 文本嵌入，[open.bigmodel.cn](https://open.bigmodel.cn)；亦可通过 `ZHIPUAI_BASE_URL` 切换其他兼容 OpenAI `/embeddings` 的服务）
 
 ### 安装
 
@@ -184,9 +197,9 @@ python -m venv .venv
 source .venv/bin/activate   # Linux / macOS
 # .venv\Scripts\activate    # Windows
 
-pip install -r requirements.txt
-cp .env.example .env
-# 编辑 .env 文件，填入 API 密钥
+pip install -r agentic_rag/requirements.txt
+cp agentic_rag/.env.example agentic_rag/.env
+# 编辑 agentic_rag/.env（或仓库根目录 .env），填入 API 密钥
 ```
 
 ### 启动
@@ -212,8 +225,11 @@ pytest tests/ -v
 | 环境变量 | 默认值 | 说明 |
 |---------|--------|------|
 | `ANTHROPIC_API_KEY` |（必填）| Anthropic Claude API 密钥 |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Anthropic API 地址（支持自定义代理） |
 | `TAVILY_API_KEY` |（必填）| Tavily 网页搜索 API 密钥 |
-| `OPENAI_API_KEY` |（必填）| OpenAI API 密钥（嵌入用） |
+| `ZHIPUAI_API_KEY` |（必填）| ChromaDB 嵌入模型 API 密钥 |
+| `ZHIPUAI_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` | 嵌入接口地址（兼容 OpenAI `/embeddings`） |
+| `EMBEDDING_MODEL` | `embedding-3` | 文本嵌入模型名称 |
 | `CHROMA_PERSIST_DIR` | `./chroma_data` | ChromaDB 本地持久化目录 |
 | `MAX_RESEARCH_ITERATIONS` | `3` | 单章节最大重新检索次数 |
 | `MAX_BUDGET_USD` | `2.00` | 单次报告硬性费用上限 |
